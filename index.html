@@ -3,69 +3,98 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Stereo 3D Nebula</title>
+  <title>Stereo Nebula Gravity</title>
   <style>
-    html, body { margin:0; padding:0; height:100%; overflow:hidden; background:#000; color:#fff; font-family: system-ui, sans-serif; }
+    html, body { margin:0; padding:0; height:100%; overflow:hidden; background:#020205; color:#e9eef7; font-family: ui-sans-serif, system-ui, sans-serif; }
     #root { position:fixed; inset:0; }
     canvas { display:block; }
 
+    /* Overlay */
     #overlay {
       position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
-      background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(10px); z-index: 50; transition: opacity 0.8s ease;
+      background: rgba(2, 2, 5, 0.85); backdrop-filter: blur(8px); z-index: 50; transition: opacity 0.5s ease;
     }
     #overlay.hidden { opacity: 0; pointer-events: none; }
-    
-    .title { font-size: 24px; font-weight: 200; letter-spacing: 0.2em; margin-bottom: 10px; text-transform: uppercase; }
-    .subtitle { font-size: 11px; letter-spacing: 0.1em; color: #888; margin-bottom: 40px; }
-    
-    button {
-      padding: 14px 40px; background: transparent; border: 1px solid rgba(255,255,255,0.3); color: #fff;
-      font-size: 12px; letter-spacing: 0.2em; text-transform: uppercase; border-radius: 4px;
+    .title-main { font-size: 24px; letter-spacing: 0.2em; font-weight: 300; text-transform: uppercase; margin-bottom: 30px; }
+    #startBtn {
+      padding: 12px 30px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2);
+      color: #fff; font-size: 12px; letter-spacing: 0.2em; text-transform: uppercase; border-radius: 6px;
       cursor: pointer; transition: all 0.3s;
     }
-    button:hover { background: #fff; color: #000; box-shadow: 0 0 20px rgba(255,255,255,0.5); }
+    #startBtn:hover { background: rgba(255,255,255,0.15); border-color: rgba(255,255,255,0.6); }
 
+    /* UI Panel */
     .hud {
-      position: fixed; bottom: 20px; left: 20px; font-size: 10px; letter-spacing: 0.15em;
-      color: rgba(255,255,255,0.5); text-transform: uppercase; pointer-events: none;
+      position:fixed; top:12px; left:12px; font-size:11px; line-height:1.4;
+      background:rgba(0,0,0,.5); border:1px solid rgba(255,255,255,.1);
+      padding:10px 12px; border-radius:10px; backdrop-filter: blur(8px); user-select:none; z-index: 10;
     }
+    .panel {
+      position:fixed; top:80px; left:12px; width:260px;
+      background:rgba(0,0,0,.5); border:1px solid rgba(255,255,255,.1);
+      padding:12px; border-radius:10px; backdrop-filter: blur(8px); user-select:none; z-index: 10;
+    }
+    .row { display:flex; align-items:center; gap:10px; margin:8px 0; font-size:11px; }
+    .row label { flex: 1 1 auto; opacity:.8; }
+    .row output { width:50px; text-align:right; font-variant-numeric: tabular-nums; opacity:.9; }
+    input[type="range"] { width:100%; accent-color: #fff; }
+    button.ui-btn {
+      background:rgba(255,255,255,.08); color:#fff; border:1px solid rgba(255,255,255,.15);
+      border-radius:6px; padding:6px 10px; font-size:11px; flex:1; cursor:pointer;
+    }
+    button.ui-btn:active { transform: translateY(1px); }
+    .btnrow { display:flex; gap:10px; margin-top:12px; }
+
+    /* Stereo Meters */
+    .stereo-meters { position: fixed; bottom: 20px; right: 20px; display: flex; gap: 15px; z-index: 10; pointer-events: none; }
+    .meter-col { display: flex; flex-direction: column; gap: 6px; align-items: center; }
+    .bar { width: 4px; height: 50px; background: rgba(255,255,255,0.1); border-radius: 2px; position: relative; overflow: hidden; }
+    .fill { position: absolute; bottom: 0; left: 0; width: 100%; height: 0%; transition: height 0.05s; }
+    .fill.left { background: #00f0ff; box-shadow: 0 0 8px #00f0ff; }
+    .fill.right { background: #ff0055; box-shadow: 0 0 8px #ff0055; }
+    .meter-label { font-size: 9px; letter-spacing: 1px; color: rgba(255,255,255,0.5); }
     
-    .stereo-meters {
-      position: fixed; bottom: 20px; right: 20px; display: flex; gap: 20px; pointer-events: none;
-    }
-    .meter-col { display: flex; flex-direction: column; gap: 4px; align-items: center; }
-    .meter-label { font-size: 9px; letter-spacing: 2px; color: #777; }
-    .bar { width: 4px; height: 60px; background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden; position: relative; }
-    .fill { position: absolute; bottom: 0; left: 0; width: 100%; height: 0%; background: #fff; transition: height 0.05s; }
-    .fill.left { background: #00f0ff; box-shadow: 0 0 10px #00f0ff; }
-    .fill.right { background: #ff0055; box-shadow: 0 0 10px #ff0055; }
+    .hint { position: fixed; bottom: 15px; left: 50%; transform: translateX(-50%); font-size: 11px; opacity: 0.5; pointer-events: none; letter-spacing: 1px; text-transform: uppercase; }
   </style>
 </head>
 <body>
-
   <div id="root"></div>
 
   <div id="overlay">
-    <div class="title">Stereo 3D Nebula</div>
-    <div class="subtitle">Binaural Particle Sphere</div>
-    <button id="startBtn">Enable Audio</button>
+    <div class="title-main">Stereo Nebula Gravity</div>
+    <button id="startBtn">Enable Audio & Start</button>
   </div>
 
   <div class="hud">
-    Drag to orbit · Scroll to zoom<br><br>
-    Particles: 50,000
+    <div>FPS: <span id="fps">--</span></div>
+    <div>Particles: <span id="pcount">--</span></div>
+  </div>
+
+  <div class="panel">
+    <div class="row"><label>Base Gravity (G)</label><output id="gOut">1.50</output></div>
+    <input id="g" type="range" min="0.00" max="10.00" step="0.1" value="1.50" />
+
+    <div class="row"><label>Softening ε</label><output id="epsOut">3.00</output></div>
+    <input id="eps" type="range" min="0.10" max="20.00" step="0.10" value="3.00" />
+
+    <div class="row"><label>Nebula Density (Count)</label><output id="countOut">6000</output></div>
+    <input id="count" type="range" min="1000" max="12000" step="500" value="6000" />
+
+    <div class="row"><label>Particle Size</label><output id="sizeOut">8.0</output></div>
+    <input id="size" type="range" min="1.0" max="25.0" step="0.5" value="8.0" />
+
+    <div class="btnrow">
+      <button class="ui-btn" id="pauseBtn">⏸ Pause</button>
+      <button class="ui-btn" id="resetBtn">↺ Reset Blob</button>
+    </div>
   </div>
 
   <div class="stereo-meters">
-    <div class="meter-col">
-      <div class="bar"><div class="fill left" id="meterL"></div></div>
-      <div class="meter-label">L</div>
-    </div>
-    <div class="meter-col">
-      <div class="bar"><div class="fill right" id="meterR"></div></div>
-      <div class="meter-label">R</div>
-    </div>
+    <div class="meter-col"><div class="bar"><div class="fill left" id="meterL"></div></div><div class="meter-label">L</div></div>
+    <div class="meter-col"><div class="bar"><div class="fill right" id="meterR"></div></div><div class="meter-label">R</div></div>
   </div>
+
+  <div class="hint">Drag to orbit · Scroll to zoom</div>
 
   <script type="importmap">
     {
@@ -83,214 +112,287 @@
     import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
     import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
 
-    // --- CONFIG ---
-    const NUM_PARTICLES = 50000;
-    const BASE_RADIUS = 120;
-    
-    // --- THREE.JS SETUP ---
+    // --- Math & Helpers ---
+    function clamp(x, a, b){ return Math.max(a, Math.min(b, x)); }
+    function randn(){
+      let u = 0, v = 0; while(u === 0) u = Math.random(); while(v === 0) v = Math.random();
+      return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+    }
+    // ECHTE 3D-Kugel-Verteilung
+    function randomPointInSphere(radius){
+      let x = randn(), y = randn(), z = randn();
+      const len = Math.sqrt(x*x + y*y + z*z) || 1;
+      const r = radius * Math.cbrt(Math.random());
+      return [(x/len)*r, (y/len)*r, (z/len)*r];
+    }
+
+    // --- Barnes-Hut Octree Physics ---
+    const MAX_DEPTH = 18;
+    class Node {
+      constructor(cx, cy, cz, half, depth){
+        this.cx = cx; this.cy = cy; this.cz = cz; this.half = half; this.depth = depth;
+        this.mass = 0; this.sx = 0; this.sy = 0; this.sz = 0; this.child = null; this.p = -1;
+      }
+      get isLeaf(){ return this.child === null; }
+    }
+    function childIndex(node, x, y, z){
+      let idx = 0; if (x >= node.cx) idx |= 1; if (y >= node.cy) idx |= 2; if (z >= node.cz) idx |= 4; return idx;
+    }
+    function ensureChildren(node){
+      if (node.child) return;
+      const h = node.half * 0.5; node.child = new Array(8);
+      for (let i=0;i<8;i++) node.child[i] = new Node(node.cx+((i&1)?h:-h), node.cy+((i&2)?h:-h), node.cz+((i&4)?h:-h), h, node.depth+1);
+    }
+    function buildTree(root, n){
+      root.mass = 0; root.sx = 0; root.sy = 0; root.sz = 0; root.child = null; root.p = -1;
+      for (let i=0;i<n;i++) insertClean(root, i);
+    }
+    function insertClean(node, i){
+      const px = pxArr[i*3], py = pxArr[i*3+1], pz = pxArr[i*3+2], m = massArr[i];
+      node.mass += m; node.sx += m * px; node.sy += m * py; node.sz += m * pz;
+      if (node.isLeaf){
+        if (node.p === -1){ node.p = i; return; }
+        if (node.depth >= MAX_DEPTH) return;
+        const existing = node.p; node.p = -1; ensureChildren(node);
+        insertClean(node.child[childIndex(node, pxArr[existing*3], pxArr[existing*3+1], pxArr[existing*3+2])], existing);
+        insertClean(node.child[childIndex(node, px, py, pz)], i); return;
+      }
+      insertClean(node.child[childIndex(node, px, py, pz)], i);
+    }
+    function accelFromNode(i, node, theta, eps2, G){
+      if (node.mass <= 0) return [0,0,0];
+      const x = pxArr[i*3], y = pxArr[i*3+1], z = pxArr[i*3+2];
+      let dx = (node.sx/node.mass) - x, dy = (node.sy/node.mass) - y, dz = (node.sz/node.mass) - z;
+      const dist2 = dx*dx + dy*dy + dz*dz + eps2;
+      
+      if (node.isLeaf){
+        const j = node.p; if (j === -1 || j === i) return [0,0,0];
+        dx = pxArr[j*3] - x; dy = pxArr[j*3+1] - y; dz = pxArr[j*3+2] - z;
+        const inv3 = Math.pow(dx*dx + dy*dy + dz*dz + eps2, -1.5);
+        const s = G * massArr[j] * inv3; return [dx*s, dy*s, dz*s];
+      }
+      if ((node.half * 2) / Math.sqrt(dist2) < theta){
+        const s = G * node.mass * Math.pow(dist2, -1.5); return [dx*s, dy*s, dz*s];
+      }
+      let ax=0, ay=0, az=0;
+      for (let k=0;k<8;k++){
+        if (!node.child[k] || node.child[k].mass <= 0) continue;
+        const a = accelFromNode(i, node.child[k], theta, eps2, G);
+        ax += a[0]; ay += a[1]; az += a[2];
+      }
+      return [ax, ay, az];
+    }
+
+    // --- System State ---
+    const state = { G: 1.5, eps: 3.0, dt: 0.016, count: 6000, size: 8.0, paused: false, theta: 0.7, boundsHalf: 200, worldHalf: 1000 };
+    let pxArr = new Float32Array(0), vxArr = new Float32Array(0), massArr = new Float32Array(0), colorArr = new Float32Array(0);
+
+    // --- Three.js & Post-Processing ---
     const scene = new THREE.Scene();
-    scene.fog = new THREE.FogExp2(0x000000, 0.0015);
-
-    const camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 1, 2000);
-    camera.position.set(0, 50, 450); // Leicht erhöht, damit man die Kugel gut sieht
-
+    scene.fog = new THREE.FogExp2(0x020205, 0.001);
+    const camera = new THREE.PerspectiveCamera(60, innerWidth/innerHeight, 0.1, 5000);
+    camera.position.set(0, 150, 450);
+    
     const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: "high-performance" });
-    renderer.setSize(innerWidth, innerHeight);
-    renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
+    renderer.setSize(innerWidth, innerHeight); renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
     document.getElementById("root").appendChild(renderer.domElement);
 
     const controls = new OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true; controls.dampingFactor = 0.04;
-    controls.autoRotate = true; controls.autoRotateSpeed = 0.8;
+    controls.enableDamping = true; controls.dampingFactor = 0.05;
 
-    // --- POST PROCESSING (BLOOM) ---
+    // Bloom für den Nebel-Look
     const renderScene = new RenderPass(scene, camera);
-    const bloomPass = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 1.6, 0.6, 0.1);
+    const bloomPass = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 1.8, 0.6, 0.05);
     const composer = new EffectComposer(renderer);
-    composer.addPass(renderScene);
-    composer.addPass(bloomPass);
+    composer.addPass(renderScene); composer.addPass(bloomPass);
 
-    // --- PROCEDURAL PARTICLE TEXTURE ---
-    function createCircleTexture() {
-      const canvas = document.createElement('canvas'); canvas.width = 32; canvas.height = 32;
+    // Weiche Partikel-Textur (erzeugt das Nebelhafte)
+    function createSoftParticle() {
+      const canvas = document.createElement('canvas'); canvas.width = 64; canvas.height = 64;
       const ctx = canvas.getContext('2d');
-      const gradient = ctx.createRadialGradient(16, 16, 0, 16, 16, 16);
+      const gradient = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
       gradient.addColorStop(0, 'rgba(255,255,255,1)');
-      gradient.addColorStop(0.3, 'rgba(255,255,255,0.6)');
+      gradient.addColorStop(0.2, 'rgba(255,255,255,0.6)');
+      gradient.addColorStop(0.5, 'rgba(255,255,255,0.1)');
       gradient.addColorStop(1, 'rgba(0,0,0,0)');
-      ctx.fillStyle = gradient; ctx.fillRect(0, 0, 32, 32);
+      ctx.fillStyle = gradient; ctx.fillRect(0, 0, 64, 64);
       return new THREE.CanvasTexture(canvas);
     }
 
-    // --- PARTICLE SYSTEM ---
     const geometry = new THREE.BufferGeometry();
-    const positions = new Float32Array(NUM_PARTICLES * 3);
-    const velocities = new Float32Array(NUM_PARTICLES * 3);
-    const colors = new Float32Array(NUM_PARTICLES * 3);
-
-    // Hilfsfunktion für echte gleichmäßige Kugelverteilung
-    function randomPointInSphere(radius) {
-      let u = Math.random(), v = Math.random();
-      let theta = u * 2.0 * Math.PI, phi = Math.acos(2.0 * v - 1.0);
-      let r = Math.cbrt(Math.random()) * radius;
-      return [r * Math.sin(phi) * Math.cos(theta), r * Math.sin(phi) * Math.sin(theta), r * Math.cos(phi)];
-    }
-
-    for (let i = 0; i < NUM_PARTICLES; i++) {
-      const p = randomPointInSphere(BASE_RADIUS);
-      positions[i*3]   = p[0];
-      positions[i*3+1] = p[1];
-      positions[i*3+2] = p[2];
-      
-      colors[i*3] = 1; colors[i*3+1] = 1; colors[i*3+2] = 1; // Start weiß
-    }
-
-    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-
     const material = new THREE.PointsMaterial({
-      size: 1.8,
-      map: createCircleTexture(),
-      vertexColors: true,
-      transparent: true,
-      opacity: 0.8,
-      depthWrite: false,
-      blending: THREE.AdditiveBlending
+      size: state.size, map: createSoftParticle(), vertexColors: true,
+      transparent: true, opacity: 0.6, depthWrite: false, blending: THREE.AdditiveBlending
     });
+    const points = new THREE.Points(geometry, material);
+    scene.add(points);
 
-    const particles = new THREE.Points(geometry, material);
-    scene.add(particles);
-
-    // --- AUDIO SETUP (STEREO SPLIT) ---
-    let audioCtx, analyserL, analyserR, dataL, dataR;
+    // --- Audio Setup ---
     let audioRunning = false;
-    let bandsL = { sub: 0, mid: 0, high: 0 }, bandsR = { sub: 0, mid: 0, high: 0 };
+    let analyserL, analyserR, dataL, dataR;
+    let audioBands = { subL: 0, subR: 0, midL: 0, midR: 0 };
 
     document.getElementById('startBtn').addEventListener('click', async () => {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        audioCtx = new AudioContext();
+        const ctx = new AudioContext();
+        const source = ctx.createMediaStreamSource(stream);
+        const splitter = ctx.createChannelSplitter(2);
         
-        const source = audioCtx.createMediaStreamSource(stream);
-        const splitter = audioCtx.createChannelSplitter(2);
-        
-        analyserL = audioCtx.createAnalyser(); analyserL.fftSize = 512; analyserL.smoothingTimeConstant = 0.82;
-        analyserR = audioCtx.createAnalyser(); analyserR.fftSize = 512; analyserR.smoothingTimeConstant = 0.82;
+        analyserL = ctx.createAnalyser(); analyserL.fftSize = 512; analyserL.smoothingTimeConstant = 0.8;
+        analyserR = ctx.createAnalyser(); analyserR.fftSize = 512; analyserR.smoothingTimeConstant = 0.8;
 
         source.connect(splitter);
-        splitter.connect(analyserL, 0); // Kanal 0 (Links)
-        splitter.connect(analyserR, 1); // Kanal 1 (Rechts)
+        splitter.connect(analyserL, 0); splitter.connect(analyserR, 1);
 
-        dataL = new Uint8Array(analyserL.frequencyBinCount);
-        dataR = new Uint8Array(analyserR.frequencyBinCount);
-        
+        dataL = new Uint8Array(analyserL.frequencyBinCount); dataR = new Uint8Array(analyserR.frequencyBinCount);
         audioRunning = true;
         document.getElementById('overlay').classList.add('hidden');
-      } catch (err) {
-        alert('Mikrofonzugriff benötigt!\n' + err.message);
-      }
+      } catch (err) { alert('Microphone access needed!\n' + err.message); }
     });
 
-    function getBands(data) {
-      const avg = (start, end) => {
-        let sum = 0; for (let i = start; i < end; i++) sum += data[i];
-        return (sum / (end - start)) / 255;
-      };
-      return { sub: avg(1, 4), mid: avg(10, 40), high: avg(80, 160) };
+    const getAvg = (data, s, e) => { let sum=0; for(let i=s;i<e;i++) sum+=data[i]; return (sum/(e-s))/255; };
+
+    // --- Simulation Logic ---
+    function resetSim(){
+      const n = state.count;
+      pxArr = new Float32Array(n*3); vxArr = new Float32Array(n*3);
+      massArr = new Float32Array(n); colorArr = new Float32Array(n*3);
+
+      for (let i=0;i<n;i++){
+        // Echte 3D-Kugel-Form zum Start
+        const p = randomPointInSphere(state.boundsHalf);
+        pxArr[i*3] = p[0]; pxArr[i*3+1] = p[1]; pxArr[i*3+2] = p[2];
+        massArr[i] = 0.5 + Math.random()*2.0;
+
+        // Leichte, chaotische Eigenbewegung statt starrer Rotation
+        vxArr[i*3] = (Math.random()-0.5)*1.5;
+        vxArr[i*3+1] = (Math.random()-0.5)*1.5;
+        vxArr[i*3+2] = (Math.random()-0.5)*1.5;
+      }
+
+      geometry.setAttribute("position", new THREE.BufferAttribute(pxArr, 3));
+      geometry.setAttribute("color", new THREE.BufferAttribute(colorArr, 3));
+      document.getElementById("pcount").textContent = state.count;
     }
 
-    // --- PHYSICS & ANIMATION LOOP ---
-    const colLeft = { r: 0.0, g: 0.94, b: 1.0 }; // Cyan
-    const colRight = { r: 1.0, g: 0.0, b: 0.33 }; // Magenta
+    const rootTree = new Node(0,0,0, state.worldHalf, 0);
+    let lastTime = performance.now(), frames = 0;
+    
+    // Farben für den Stereo-Nebel
+    const cLeft = { r: 0.0, g: 0.9, b: 1.0 };  // Cyan links
+    const cRight = { r: 1.0, g: 0.0, b: 0.4 }; // Magenta rechts
+    const cIdle = { r: 0.3, g: 0.3, b: 0.5 };  // Gedimmtes Lila/Blau im Ruhestand
 
-    function animate() {
-      requestAnimationFrame(animate);
+    function step(){
+      const now = performance.now();
+      frames++; if (now - lastTime >= 500) { document.getElementById("fps").textContent = Math.round(frames * 1000 / (now - lastTime)); frames = 0; lastTime = now; }
 
       if (audioRunning) {
-        analyserL.getByteFrequencyData(dataL);
-        analyserR.getByteFrequencyData(dataR);
-        bandsL = getBands(dataL);
-        bandsR = getBands(dataR);
-
-        // UI Updates
-        document.getElementById('meterL').style.height = `${bandsL.sub * 100}%`;
-        document.getElementById('meterR').style.height = `${bandsR.sub * 100}%`;
+        analyserL.getByteFrequencyData(dataL); analyserR.getByteFrequencyData(dataR);
+        audioBands = { subL: getAvg(dataL, 1, 6), subR: getAvg(dataR, 1, 6), midL: getAvg(dataL, 10, 50), midR: getAvg(dataR, 10, 50) };
+        document.getElementById('meterL').style.height = `${audioBands.subL * 100}%`;
+        document.getElementById('meterR').style.height = `${audioBands.subR * 100}%`;
       }
-
-      const pos = geometry.attributes.position.array;
-      const vel = velocities;
-      const col = geometry.attributes.color.array;
-
-      for (let i = 0; i < NUM_PARTICLES; i++) {
-        const i3 = i * 3;
-        const x = pos[i3], y = pos[i3+1], z = pos[i3+2];
-        const distToCenter = Math.sqrt(x*x + y*y + z*z) + 0.001;
-
-        // Finde den Stereo-Mix für genau dieses Partikel basierend auf seiner X-Position (-150 bis +150)
-        // mix = 0 bedeutet voll links, mix = 1 bedeutet voll rechts
-        const mix = Math.max(0, Math.min(1, (x + 150) / 300));
-        
-        // Berechne die lokalen Audiodaten für dieses Partikel
-        const localSub = bandsL.sub * (1 - mix) + bandsR.sub * mix;
-        const localMid = bandsL.mid * (1 - mix) + bandsR.mid * mix;
-        const localHigh = bandsL.high * (1 - mix) + bandsR.high * mix;
-
-        // 1. ATMEN DER KUGEL (Radial Force)
-        // Der Bass bläht den Radius auf. Da wir localSub nutzen, bläht sich z.B. nur die linke Seite auf, wenn der Bass von links kommt.
-        const targetRadius = BASE_RADIUS + (localSub * 180);
-        const radialForce = (targetRadius - distToCenter) * 0.03; // Federkraft hin zur Hülle
-        
-        vel[i3]   += (x / distToCenter) * radialForce;
-        vel[i3+1] += (y / distToCenter) * radialForce;
-        vel[i3+2] += (z / distToCenter) * radialForce;
-
-        // 2. WIRBEL (Tangential Swirl)
-        // Mitten lassen die Partikel um die Y-Achse rotieren
-        const swirlForce = 0.01 + (localMid * 0.08);
-        vel[i3]   += z * swirlForce;
-        vel[i3+2] -= x * swirlForce;
-
-        // 3. TURBULENZ (Noise)
-        // Höhen erzeugen zufälliges Zittern an der Oberfläche
-        if (localHigh > 0.1) {
-          vel[i3]   += (Math.random() - 0.5) * localHigh * 8;
-          vel[i3+1] += (Math.random() - 0.5) * localHigh * 8;
-          vel[i3+2] += (Math.random() - 0.5) * localHigh * 8;
-        }
-
-        // 4. REIBUNG (Friction im Raum)
-        vel[i3]   *= 0.88;
-        vel[i3+1] *= 0.88;
-        vel[i3+2] *= 0.88;
-
-        // Position updaten
-        pos[i3]   += vel[i3];
-        pos[i3+1] += vel[i3+1];
-        pos[i3+2] += vel[i3+2];
-
-        // 5. DYNAMISCHE FARBEN
-        // Die Helligkeit (Glow) skaliert mit der Geschwindigkeit und dem lokalen Bass
-        const speed = Math.sqrt(vel[i3]**2 + vel[i3+1]**2 + vel[i3+2]**2);
-        const brightness = 0.15 + (speed * 0.06) + (localSub * 0.6);
-
-        col[i3]   = (colLeft.r * (1 - mix) + colRight.r * mix) * brightness;
-        col[i3+1] = (colLeft.g * (1 - mix) + colRight.g * mix) * brightness;
-        col[i3+2] = (colLeft.b * (1 - mix) + colRight.b * mix) * brightness;
-      }
-
-      geometry.attributes.position.needsUpdate = true;
-      geometry.attributes.color.needsUpdate = true;
 
       controls.update();
+
+      if (!state.paused){
+        const n = state.count, dt = state.dt, eps2 = state.eps * state.eps;
+        
+        // GLOBAL GRAVITY BOOST durch Audio (Bass). Wenn es wummert, zieht sich der Nebel zusammen.
+        const totalSub = (audioBands.subL + audioBands.subR) / 2;
+        const dynamicG = state.G * (1.0 + (totalSub * 4.0)); 
+
+        rootTree.cx = 0; rootTree.cy = 0; rootTree.cz = 0; rootTree.half = state.worldHalf; rootTree.child = null;
+        buildTree(rootTree, n);
+
+        for (let i=0;i<n;i++){
+          const a = accelFromNode(i, rootTree, state.theta, eps2, dynamicG);
+          const i3 = i*3;
+          const px = pxArr[i3], py = pxArr[i3+1], pz = pxArr[i3+2];
+
+          // Barnes-Hut Physik anwenden
+          vxArr[i3]   = (vxArr[i3]   + a[0] * dt) * 0.995; // Leichte Dämpfung, damit sie nicht ewig beschleunigen
+          vxArr[i3+1] = (vxArr[i3+1] + a[1] * dt) * 0.995;
+          vxArr[i3+2] = (vxArr[i3+2] + a[2] * dt) * 0.995;
+
+          // Audio-Impact auf Partikelgeschwindigkeit (Jitter bei Mitten)
+          if (audioRunning) {
+            // Finde heraus, ob das Partikel links oder rechts im Raum ist
+            const spatialMix = clamp((px + 100) / 200, 0, 1); // 0 = Links, 1 = Rechts
+            const localMid = audioBands.midL * (1 - spatialMix) + audioBands.midR * spatialMix;
+            
+            if (localMid > 0.1) {
+              vxArr[i3]   += (Math.random()-0.5) * localMid * 0.8;
+              vxArr[i3+1] += (Math.random()-0.5) * localMid * 0.8;
+              vxArr[i3+2] += (Math.random()-0.5) * localMid * 0.8;
+            }
+          }
+
+          pxArr[i3]   += vxArr[i3]   * dt;
+          pxArr[i3+1] += vxArr[i3+1] * dt;
+          pxArr[i3+2] += vxArr[i3+2] * dt;
+
+          // Sanfte Barriere, damit der Nebel im Bild bleibt
+          const r = Math.sqrt(px*px + py*py + pz*pz);
+          if (r > state.worldHalf * 0.6){
+            vxArr[i3] -= (px/r)*0.2; vxArr[i3+1] -= (py/r)*0.2; vxArr[i3+2] -= (pz/r)*0.2;
+          }
+
+          // FARB-MAPPING (Stereo Nebel)
+          const speed = Math.sqrt(vxArr[i3]**2 + vxArr[i3+1]**2 + vxArr[i3+2]**2);
+          const spatialMix = clamp((px + 100) / 200, 0, 1); // Wo ist das Partikel auf der X-Achse?
+          
+          let targetR = cIdle.r, targetG = cIdle.g, targetB = cIdle.b;
+          
+          if (audioRunning) {
+            // Partikel leuchten in Cyan auf, wenn links Audio kommt, und in Magenta, wenn rechts Audio kommt.
+            const localGlow = (audioBands.subL * (1-spatialMix)) + (audioBands.subR * spatialMix);
+            const rBase = cLeft.r * (1-spatialMix) + cRight.r * spatialMix;
+            const gBase = cLeft.g * (1-spatialMix) + cRight.g * spatialMix;
+            const bBase = cLeft.b * (1-spatialMix) + cRight.b * spatialMix;
+            
+            // Mix aus Idle-Farbe und "Aufleuchten" + Geschwindigkeits-Glow
+            targetR = cIdle.r + (rBase * localGlow * 2.5) + (speed * 0.05);
+            targetG = cIdle.g + (gBase * localGlow * 2.5) + (speed * 0.05);
+            targetB = cIdle.b + (bBase * localGlow * 2.5) + (speed * 0.05);
+          } else {
+             targetR += speed * 0.05; targetG += speed * 0.05; targetB += speed * 0.05;
+          }
+
+          // Weiche Farb-Übergänge
+          colorArr[i3]   += (targetR - colorArr[i3]) * 0.1;
+          colorArr[i3+1] += (targetG - colorArr[i3+1]) * 0.1;
+          colorArr[i3+2] += (targetB - colorArr[i3+2]) * 0.1;
+        }
+
+        geometry.attributes.position.needsUpdate = true;
+        geometry.attributes.color.needsUpdate = true;
+      }
+
       composer.render();
+      requestAnimationFrame(step);
     }
 
-    window.addEventListener("resize", () => {
-      camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
-      renderer.setSize(innerWidth, innerHeight); composer.setSize(innerWidth, innerHeight);
-    });
+    // --- UI Bindings ---
+    const bindSync = (id, prop, isFloat=true) => {
+      const el = document.getElementById(id), out = document.getElementById(id+"Out");
+      el.addEventListener("input", () => {
+        state[prop] = isFloat ? parseFloat(el.value) : parseInt(el.value);
+        if(out) out.textContent = isFloat ? state[prop].toFixed(2) : state[prop];
+        if(id === "count") resetSim();
+        if(id === "size") material.size = state.size;
+      });
+    };
+    bindSync("g", "G"); bindSync("eps", "eps"); bindSync("count", "count", false); bindSync("size", "size");
+    document.getElementById("pauseBtn").addEventListener("click", (e) => { state.paused = !state.paused; e.target.textContent = state.paused ? "▶ Resume" : "⏸ Pause"; });
+    document.getElementById("resetBtn").addEventListener("click", resetSim);
+    window.addEventListener("resize", () => { renderer.setSize(innerWidth, innerHeight); composer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); });
 
-    animate();
+    // Boot
+    resetSim();
+    requestAnimationFrame(step);
   </script>
 </body>
 </html>
