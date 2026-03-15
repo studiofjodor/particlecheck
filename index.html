@@ -1,398 +1,272 @@
-<!doctype html>
-<html lang="de">
+<!DOCTYPE html>
+<html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Stereo Nebula Gravity</title>
-  <style>
-    html, body { margin:0; padding:0; height:100%; overflow:hidden; background:#020205; color:#e9eef7; font-family: ui-sans-serif, system-ui, sans-serif; }
-    #root { position:fixed; inset:0; }
-    canvas { display:block; }
-
-    /* Overlay */
-    #overlay {
-      position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
-      background: rgba(2, 2, 5, 0.85); backdrop-filter: blur(8px); z-index: 50; transition: opacity 0.5s ease;
-    }
-    #overlay.hidden { opacity: 0; pointer-events: none; }
-    .title-main { font-size: 24px; letter-spacing: 0.2em; font-weight: 300; text-transform: uppercase; margin-bottom: 30px; }
-    #startBtn {
-      padding: 12px 30px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2);
-      color: #fff; font-size: 12px; letter-spacing: 0.2em; text-transform: uppercase; border-radius: 6px;
-      cursor: pointer; transition: all 0.3s;
-    }
-    #startBtn:hover { background: rgba(255,255,255,0.15); border-color: rgba(255,255,255,0.6); }
-
-    /* UI Panel */
-    .hud {
-      position:fixed; top:12px; left:12px; font-size:11px; line-height:1.4;
-      background:rgba(0,0,0,.5); border:1px solid rgba(255,255,255,.1);
-      padding:10px 12px; border-radius:10px; backdrop-filter: blur(8px); user-select:none; z-index: 10;
-    }
-    .panel {
-      position:fixed; top:80px; left:12px; width:260px;
-      background:rgba(0,0,0,.5); border:1px solid rgba(255,255,255,.1);
-      padding:12px; border-radius:10px; backdrop-filter: blur(8px); user-select:none; z-index: 10;
-    }
-    .row { display:flex; align-items:center; gap:10px; margin:8px 0; font-size:11px; }
-    .row label { flex: 1 1 auto; opacity:.8; }
-    .row output { width:50px; text-align:right; font-variant-numeric: tabular-nums; opacity:.9; }
-    input[type="range"] { width:100%; accent-color: #fff; }
-    button.ui-btn {
-      background:rgba(255,255,255,.08); color:#fff; border:1px solid rgba(255,255,255,.15);
-      border-radius:6px; padding:6px 10px; font-size:11px; flex:1; cursor:pointer;
-    }
-    button.ui-btn:active { transform: translateY(1px); }
-    .btnrow { display:flex; gap:10px; margin-top:12px; }
-
-    /* Stereo Meters */
-    .stereo-meters { position: fixed; bottom: 20px; right: 20px; display: flex; gap: 15px; z-index: 10; pointer-events: none; }
-    .meter-col { display: flex; flex-direction: column; gap: 6px; align-items: center; }
-    .bar { width: 4px; height: 50px; background: rgba(255,255,255,0.1); border-radius: 2px; position: relative; overflow: hidden; }
-    .fill { position: absolute; bottom: 0; left: 0; width: 100%; height: 0%; transition: height 0.05s; }
-    .fill.left { background: #00f0ff; box-shadow: 0 0 8px #00f0ff; }
-    .fill.right { background: #ff0055; box-shadow: 0 0 8px #ff0055; }
-    .meter-label { font-size: 9px; letter-spacing: 1px; color: rgba(255,255,255,0.5); }
-    
-    .hint { position: fixed; bottom: 15px; left: 50%; transform: translateX(-50%); font-size: 11px; opacity: 0.5; pointer-events: none; letter-spacing: 1px; text-transform: uppercase; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DCC Particle Cloud Visualizer</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #050505; /* DCC Dark Theme */
+            font-family: 'Courier New', Courier, monospace;
+            color: #ffffff;
+        }
+        canvas {
+            display: block;
+        }
+        #overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            z-index: 10;
+            pointer-events: none;
+        }
+        button {
+            pointer-events: auto;
+            background: transparent;
+            border: 1px solid #fff;
+            color: #fff;
+            padding: 15px 30px;
+            font-size: 16px;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            transition: all 0.3s ease;
+        }
+        button:hover {
+            background: #fff;
+            color: #000;
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.5);
+        }
+        #info {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            font-size: 12px;
+            opacity: 0.7;
+        }
+    </style>
 </head>
 <body>
-  <div id="root"></div>
-
-  <div id="overlay">
-    <div class="title-main">Stereo Nebula Gravity</div>
-    <button id="startBtn">Enable Audio & Start</button>
-  </div>
-
-  <div class="hud">
-    <div>FPS: <span id="fps">--</span></div>
-    <div>Particles: <span id="pcount">--</span></div>
-  </div>
-
-  <div class="panel">
-    <div class="row"><label>Base Gravity (G)</label><output id="gOut">1.50</output></div>
-    <input id="g" type="range" min="0.00" max="10.00" step="0.1" value="1.50" />
-
-    <div class="row"><label>Softening ε</label><output id="epsOut">3.00</output></div>
-    <input id="eps" type="range" min="0.10" max="20.00" step="0.10" value="3.00" />
-
-    <div class="row"><label>Nebula Density (Count)</label><output id="countOut">6000</output></div>
-    <input id="count" type="range" min="1000" max="12000" step="500" value="6000" />
-
-    <div class="row"><label>Particle Size</label><output id="sizeOut">8.0</output></div>
-    <input id="size" type="range" min="1.0" max="25.0" step="0.5" value="8.0" />
-
-    <div class="btnrow">
-      <button class="ui-btn" id="pauseBtn">⏸ Pause</button>
-      <button class="ui-btn" id="resetBtn">↺ Reset Blob</button>
+    <div id="overlay">
+        <h1>DCC // PARTICLE CLOUD</h1>
+        <p>Microphone Access Required</p>
+        <button id="startButton">Initialize Visualizer</button>
     </div>
-  </div>
+    <div id="info">Freq: <span id="freqVal">0</span> | Particles: 4000</div>
 
-  <div class="stereo-meters">
-    <div class="meter-col"><div class="bar"><div class="fill left" id="meterL"></div></div><div class="meter-label">L</div></div>
-    <div class="meter-col"><div class="bar"><div class="fill right" id="meterR"></div></div><div class="meter-label">R</div></div>
-  </div>
+    <!-- Three.js from CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
-  <div class="hint">Drag to orbit · Scroll to zoom</div>
+    <script>
+        // --- CONFIGURATION ---
+        const CONFIG = {
+            particleCount: 4000,
+            sphereRadius: 15,
+            bassThreshold: 230, // 0-255, trigger point for implosion
+            implosionStrength: 0.8, // How hard they get sucked in
+            returnSpeed: 0.05, // How fast they reform the sphere
+            colorCycleSpeed: 0.001
+        };
 
-  <script type="importmap">
-    {
-      "imports": {
-        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
-      }
-    }
-  </script>
+        // --- SCENE SETUP ---
+        const scene = new THREE.Scene();
+        // Fog for depth in the "Club" environment
+        scene.fog = new THREE.FogExp2(0x050505, 0.02);
 
-  <script type="module">
-    import * as THREE from "three";
-    import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-    import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
-    import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
-    import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.z = 40;
 
-    // --- Math & Helpers ---
-    function clamp(x, a, b){ return Math.max(a, Math.min(b, x)); }
-    function randn(){
-      let u = 0, v = 0; while(u === 0) u = Math.random(); while(v === 0) v = Math.random();
-      return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
-    }
-    // ECHTE 3D-Kugel-Verteilung
-    function randomPointInSphere(radius){
-      let x = randn(), y = randn(), z = randn();
-      const len = Math.sqrt(x*x + y*y + z*z) || 1;
-      const r = radius * Math.cbrt(Math.random());
-      return [(x/len)*r, (y/len)*r, (z/len)*r];
-    }
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        document.body.appendChild(renderer.domElement);
 
-    // --- Barnes-Hut Octree Physics ---
-    const MAX_DEPTH = 18;
-    class Node {
-      constructor(cx, cy, cz, half, depth){
-        this.cx = cx; this.cy = cy; this.cz = cz; this.half = half; this.depth = depth;
-        this.mass = 0; this.sx = 0; this.sy = 0; this.sz = 0; this.child = null; this.p = -1;
-      }
-      get isLeaf(){ return this.child === null; }
-    }
-    function childIndex(node, x, y, z){
-      let idx = 0; if (x >= node.cx) idx |= 1; if (y >= node.cy) idx |= 2; if (z >= node.cz) idx |= 4; return idx;
-    }
-    function ensureChildren(node){
-      if (node.child) return;
-      const h = node.half * 0.5; node.child = new Array(8);
-      for (let i=0;i<8;i++) node.child[i] = new Node(node.cx+((i&1)?h:-h), node.cy+((i&2)?h:-h), node.cz+((i&4)?h:-h), h, node.depth+1);
-    }
-    function buildTree(root, n){
-      root.mass = 0; root.sx = 0; root.sy = 0; root.sz = 0; root.child = null; root.p = -1;
-      for (let i=0;i<n;i++) insertClean(root, i);
-    }
-    function insertClean(node, i){
-      const px = pxArr[i*3], py = pxArr[i*3+1], pz = pxArr[i*3+2], m = massArr[i];
-      node.mass += m; node.sx += m * px; node.sy += m * py; node.sz += m * pz;
-      if (node.isLeaf){
-        if (node.p === -1){ node.p = i; return; }
-        if (node.depth >= MAX_DEPTH) return;
-        const existing = node.p; node.p = -1; ensureChildren(node);
-        insertClean(node.child[childIndex(node, pxArr[existing*3], pxArr[existing*3+1], pxArr[existing*3+2])], existing);
-        insertClean(node.child[childIndex(node, px, py, pz)], i); return;
-      }
-      insertClean(node.child[childIndex(node, px, py, pz)], i);
-    }
-    function accelFromNode(i, node, theta, eps2, G){
-      if (node.mass <= 0) return [0,0,0];
-      const x = pxArr[i*3], y = pxArr[i*3+1], z = pxArr[i*3+2];
-      let dx = (node.sx/node.mass) - x, dy = (node.sy/node.mass) - y, dz = (node.sz/node.mass) - z;
-      const dist2 = dx*dx + dy*dy + dz*dz + eps2;
-      
-      if (node.isLeaf){
-        const j = node.p; if (j === -1 || j === i) return [0,0,0];
-        dx = pxArr[j*3] - x; dy = pxArr[j*3+1] - y; dz = pxArr[j*3+2] - z;
-        const inv3 = Math.pow(dx*dx + dy*dy + dz*dz + eps2, -1.5);
-        const s = G * massArr[j] * inv3; return [dx*s, dy*s, dz*s];
-      }
-      if ((node.half * 2) / Math.sqrt(dist2) < theta){
-        const s = G * node.mass * Math.pow(dist2, -1.5); return [dx*s, dy*s, dz*s];
-      }
-      let ax=0, ay=0, az=0;
-      for (let k=0;k<8;k++){
-        if (!node.child[k] || node.child[k].mass <= 0) continue;
-        const a = accelFromNode(i, node.child[k], theta, eps2, G);
-        ax += a[0]; ay += a[1]; az += a[2];
-      }
-      return [ax, ay, az];
-    }
-
-    // --- System State ---
-    const state = { G: 1.5, eps: 3.0, dt: 0.016, count: 6000, size: 8.0, paused: false, theta: 0.7, boundsHalf: 200, worldHalf: 1000 };
-    let pxArr = new Float32Array(0), vxArr = new Float32Array(0), massArr = new Float32Array(0), colorArr = new Float32Array(0);
-
-    // --- Three.js & Post-Processing ---
-    const scene = new THREE.Scene();
-    scene.fog = new THREE.FogExp2(0x020205, 0.001);
-    const camera = new THREE.PerspectiveCamera(60, innerWidth/innerHeight, 0.1, 5000);
-    camera.position.set(0, 150, 450);
-    
-    const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: "high-performance" });
-    renderer.setSize(innerWidth, innerHeight); renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
-    document.getElementById("root").appendChild(renderer.domElement);
-
-    const controls = new OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true; controls.dampingFactor = 0.05;
-
-    // Bloom für den Nebel-Look
-    const renderScene = new RenderPass(scene, camera);
-    const bloomPass = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 1.8, 0.6, 0.05);
-    const composer = new EffectComposer(renderer);
-    composer.addPass(renderScene); composer.addPass(bloomPass);
-
-    // Weiche Partikel-Textur (erzeugt das Nebelhafte)
-    function createSoftParticle() {
-      const canvas = document.createElement('canvas'); canvas.width = 64; canvas.height = 64;
-      const ctx = canvas.getContext('2d');
-      const gradient = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
-      gradient.addColorStop(0, 'rgba(255,255,255,1)');
-      gradient.addColorStop(0.2, 'rgba(255,255,255,0.6)');
-      gradient.addColorStop(0.5, 'rgba(255,255,255,0.1)');
-      gradient.addColorStop(1, 'rgba(0,0,0,0)');
-      ctx.fillStyle = gradient; ctx.fillRect(0, 0, 64, 64);
-      return new THREE.CanvasTexture(canvas);
-    }
-
-    const geometry = new THREE.BufferGeometry();
-    const material = new THREE.PointsMaterial({
-      size: state.size, map: createSoftParticle(), vertexColors: true,
-      transparent: true, opacity: 0.6, depthWrite: false, blending: THREE.AdditiveBlending
-    });
-    const points = new THREE.Points(geometry, material);
-    scene.add(points);
-
-    // --- Audio Setup ---
-    let audioRunning = false;
-    let analyserL, analyserR, dataL, dataR;
-    let audioBands = { subL: 0, subR: 0, midL: 0, midR: 0 };
-
-    document.getElementById('startBtn').addEventListener('click', async () => {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        const ctx = new AudioContext();
-        const source = ctx.createMediaStreamSource(stream);
-        const splitter = ctx.createChannelSplitter(2);
+        // --- AUDIO SYSTEM ---
+        let analyser, dataArray;
+        let isAudioActive = false;
         
-        analyserL = ctx.createAnalyser(); analyserL.fftSize = 512; analyserL.smoothingTimeConstant = 0.8;
-        analyserR = ctx.createAnalyser(); analyserR.fftSize = 512; analyserR.smoothingTimeConstant = 0.8;
-
-        source.connect(splitter);
-        splitter.connect(analyserL, 0); splitter.connect(analyserR, 1);
-
-        dataL = new Uint8Array(analyserL.frequencyBinCount); dataR = new Uint8Array(analyserR.frequencyBinCount);
-        audioRunning = true;
-        document.getElementById('overlay').classList.add('hidden');
-      } catch (err) { alert('Microphone access needed!\n' + err.message); }
-    });
-
-    const getAvg = (data, s, e) => { let sum=0; for(let i=s;i<e;i++) sum+=data[i]; return (sum/(e-s))/255; };
-
-    // --- Simulation Logic ---
-    function resetSim(){
-      const n = state.count;
-      pxArr = new Float32Array(n*3); vxArr = new Float32Array(n*3);
-      massArr = new Float32Array(n); colorArr = new Float32Array(n*3);
-
-      for (let i=0;i<n;i++){
-        // Echte 3D-Kugel-Form zum Start
-        const p = randomPointInSphere(state.boundsHalf);
-        pxArr[i*3] = p[0]; pxArr[i*3+1] = p[1]; pxArr[i*3+2] = p[2];
-        massArr[i] = 0.5 + Math.random()*2.0;
-
-        // Leichte, chaotische Eigenbewegung statt starrer Rotation
-        vxArr[i*3] = (Math.random()-0.5)*1.5;
-        vxArr[i*3+1] = (Math.random()-0.5)*1.5;
-        vxArr[i*3+2] = (Math.random()-0.5)*1.5;
-      }
-
-      geometry.setAttribute("position", new THREE.BufferAttribute(pxArr, 3));
-      geometry.setAttribute("color", new THREE.BufferAttribute(colorArr, 3));
-      document.getElementById("pcount").textContent = state.count;
-    }
-
-    const rootTree = new Node(0,0,0, state.worldHalf, 0);
-    let lastTime = performance.now(), frames = 0;
-    
-    // Farben für den Stereo-Nebel
-    const cLeft = { r: 0.0, g: 0.9, b: 1.0 };  // Cyan links
-    const cRight = { r: 1.0, g: 0.0, b: 0.4 }; // Magenta rechts
-    const cIdle = { r: 0.3, g: 0.3, b: 0.5 };  // Gedimmtes Lila/Blau im Ruhestand
-
-    function step(){
-      const now = performance.now();
-      frames++; if (now - lastTime >= 500) { document.getElementById("fps").textContent = Math.round(frames * 1000 / (now - lastTime)); frames = 0; lastTime = now; }
-
-      if (audioRunning) {
-        analyserL.getByteFrequencyData(dataL); analyserR.getByteFrequencyData(dataR);
-        audioBands = { subL: getAvg(dataL, 1, 6), subR: getAvg(dataR, 1, 6), midL: getAvg(dataL, 10, 50), midR: getAvg(dataR, 10, 50) };
-        document.getElementById('meterL').style.height = `${audioBands.subL * 100}%`;
-        document.getElementById('meterR').style.height = `${audioBands.subR * 100}%`;
-      }
-
-      controls.update();
-
-      if (!state.paused){
-        const n = state.count, dt = state.dt, eps2 = state.eps * state.eps;
-        
-        // GLOBAL GRAVITY BOOST durch Audio (Bass). Wenn es wummert, zieht sich der Nebel zusammen.
-        const totalSub = (audioBands.subL + audioBands.subR) / 2;
-        const dynamicG = state.G * (1.0 + (totalSub * 4.0)); 
-
-        rootTree.cx = 0; rootTree.cy = 0; rootTree.cz = 0; rootTree.half = state.worldHalf; rootTree.child = null;
-        buildTree(rootTree, n);
-
-        for (let i=0;i<n;i++){
-          const a = accelFromNode(i, rootTree, state.theta, eps2, dynamicG);
-          const i3 = i*3;
-          const px = pxArr[i3], py = pxArr[i3+1], pz = pxArr[i3+2];
-
-          // Barnes-Hut Physik anwenden
-          vxArr[i3]   = (vxArr[i3]   + a[0] * dt) * 0.995; // Leichte Dämpfung, damit sie nicht ewig beschleunigen
-          vxArr[i3+1] = (vxArr[i3+1] + a[1] * dt) * 0.995;
-          vxArr[i3+2] = (vxArr[i3+2] + a[2] * dt) * 0.995;
-
-          // Audio-Impact auf Partikelgeschwindigkeit (Jitter bei Mitten)
-          if (audioRunning) {
-            // Finde heraus, ob das Partikel links oder rechts im Raum ist
-            const spatialMix = clamp((px + 100) / 200, 0, 1); // 0 = Links, 1 = Rechts
-            const localMid = audioBands.midL * (1 - spatialMix) + audioBands.midR * spatialMix;
-            
-            if (localMid > 0.1) {
-              vxArr[i3]   += (Math.random()-0.5) * localMid * 0.8;
-              vxArr[i3+1] += (Math.random()-0.5) * localMid * 0.8;
-              vxArr[i3+2] += (Math.random()-0.5) * localMid * 0.8;
+        const setupAudio = async () => {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const source = audioCtx.createMediaStreamSource(stream);
+                
+                analyser = audioCtx.createAnalyser();
+                analyser.fftSize = 512; // Frequency resolution
+                source.connect(analyser);
+                
+                dataArray = new Uint8Array(analyser.frequencyBinCount);
+                isAudioActive = true;
+                
+                document.getElementById('overlay').style.opacity = '0';
+                setTimeout(() => document.getElementById('overlay').style.display = 'none', 1000);
+            } catch (err) {
+                console.error("Audio init failed:", err);
+                alert("Microphone access denied. Please allow audio input.");
             }
-          }
+        };
 
-          pxArr[i3]   += vxArr[i3]   * dt;
-          pxArr[i3+1] += vxArr[i3+1] * dt;
-          pxArr[i3+2] += vxArr[i3+2] * dt;
+        document.getElementById('startButton').addEventListener('click', setupAudio);
 
-          // Sanfte Barriere, damit der Nebel im Bild bleibt
-          const r = Math.sqrt(px*px + py*py + pz*pz);
-          if (r > state.worldHalf * 0.6){
-            vxArr[i3] -= (px/r)*0.2; vxArr[i3+1] -= (py/r)*0.2; vxArr[i3+2] -= (pz/r)*0.2;
-          }
+        // --- PARTICLE SYSTEM ---
+        // We need extra attributes to store the "Home" position on the sphere
+        const geometry = new THREE.BufferGeometry();
+        const positions = new Float32Array(CONFIG.particleCount * 3);
+        const originalPositions = new Float32Array(CONFIG.particleCount * 3);
+        const colors = new Float32Array(CONFIG.particleCount * 3);
+        const sizes = new Float32Array(CONFIG.particleCount);
 
-          // FARB-MAPPING (Stereo Nebel)
-          const speed = Math.sqrt(vxArr[i3]**2 + vxArr[i3+1]**2 + vxArr[i3+2]**2);
-          const spatialMix = clamp((px + 100) / 200, 0, 1); // Wo ist das Partikel auf der X-Achse?
-          
-          let targetR = cIdle.r, targetG = cIdle.g, targetB = cIdle.b;
-          
-          if (audioRunning) {
-            // Partikel leuchten in Cyan auf, wenn links Audio kommt, und in Magenta, wenn rechts Audio kommt.
-            const localGlow = (audioBands.subL * (1-spatialMix)) + (audioBands.subR * spatialMix);
-            const rBase = cLeft.r * (1-spatialMix) + cRight.r * spatialMix;
-            const gBase = cLeft.g * (1-spatialMix) + cRight.g * spatialMix;
-            const bBase = cLeft.b * (1-spatialMix) + cRight.b * spatialMix;
+        const colorObj = new THREE.Color();
+
+        for (let i = 0; i < CONFIG.particleCount; i++) {
+            // SPHERICAL DISTRIBUTION (DCC Variant Requirement)
+            // Using Fibonacci sphere algorithm for even distribution or simple polar for random
+            const theta = Math.random() * Math.PI * 2;
+            const phi = Math.acos((Math.random() * 2) - 1);
             
-            // Mix aus Idle-Farbe und "Aufleuchten" + Geschwindigkeits-Glow
-            targetR = cIdle.r + (rBase * localGlow * 2.5) + (speed * 0.05);
-            targetG = cIdle.g + (gBase * localGlow * 2.5) + (speed * 0.05);
-            targetB = cIdle.b + (bBase * localGlow * 2.5) + (speed * 0.05);
-          } else {
-             targetR += speed * 0.05; targetG += speed * 0.05; targetB += speed * 0.05;
-          }
+            const x = CONFIG.sphereRadius * Math.sin(phi) * Math.cos(theta);
+            const y = CONFIG.sphereRadius * Math.sin(phi) * Math.sin(theta);
+            const z = CONFIG.sphereRadius * Math.cos(phi);
 
-          // Weiche Farb-Übergänge
-          colorArr[i3]   += (targetR - colorArr[i3]) * 0.1;
-          colorArr[i3+1] += (targetG - colorArr[i3+1]) * 0.1;
-          colorArr[i3+2] += (targetB - colorArr[i3+2]) * 0.1;
+            const i3 = i * 3;
+            
+            // Set current position
+            positions[i3] = x;
+            positions[i3 + 1] = y;
+            positions[i3 + 2] = z;
+
+            // Store "Home" position for return mechanics
+            originalPositions[i3] = x;
+            originalPositions[i3 + 1] = y;
+            originalPositions[i3 + 2] = z;
+
+            // Initial Colors (will be overwritten by HSL logic)
+            colorObj.setHSL(Math.random(), 0.7, 0.5);
+            colors[i3] = colorObj.r;
+            colors[i3 + 1] = colorObj.g;
+            colors[i3 + 2] = colorObj.b;
+
+            sizes[i] = Math.random() * 0.5;
         }
 
-        geometry.attributes.position.needsUpdate = true;
-        geometry.attributes.color.needsUpdate = true;
-      }
+        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+        geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
 
-      composer.render();
-      requestAnimationFrame(step);
-    }
+        // Shader Material for better performance & look than basic PointsMaterial
+        // Allows sizing particles in perspective
+        const material = new THREE.PointsMaterial({
+            size: 0.8,
+            vertexColors: true,
+            blending: THREE.AdditiveBlending,
+            depthTest: false,
+            transparent: true,
+            opacity: 0.8
+        });
 
-    // --- UI Bindings ---
-    const bindSync = (id, prop, isFloat=true) => {
-      const el = document.getElementById(id), out = document.getElementById(id+"Out");
-      el.addEventListener("input", () => {
-        state[prop] = isFloat ? parseFloat(el.value) : parseInt(el.value);
-        if(out) out.textContent = isFloat ? state[prop].toFixed(2) : state[prop];
-        if(id === "count") resetSim();
-        if(id === "size") material.size = state.size;
-      });
-    };
-    bindSync("g", "G"); bindSync("eps", "eps"); bindSync("count", "count", false); bindSync("size", "size");
-    document.getElementById("pauseBtn").addEventListener("click", (e) => { state.paused = !state.paused; e.target.textContent = state.paused ? "▶ Resume" : "⏸ Pause"; });
-    document.getElementById("resetBtn").addEventListener("click", resetSim);
-    window.addEventListener("resize", () => { renderer.setSize(innerWidth, innerHeight); composer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); });
+        const particles = new THREE.Points(geometry, material);
+        scene.add(particles);
 
-    // Boot
-    resetSim();
-    requestAnimationFrame(step);
-  </script>
+        // --- ANIMATION LOOP ---
+        let time = 0;
+
+        function animate() {
+            requestAnimationFrame(animate);
+            time += CONFIG.colorCycleSpeed;
+
+            // Rotation of the whole cloud
+            particles.rotation.y += 0.002;
+            particles.rotation.z += 0.001;
+
+            if (isAudioActive && analyser) {
+                analyser.getByteFrequencyData(dataArray);
+
+                // Calculate Frequency Bands
+                const bass = dataArray.slice(0, 20).reduce((a, b) => a + b, 0) / 20; // Lows
+                const mid = dataArray.slice(20, 100).reduce((a, b) => a + b, 0) / 80; // Mids
+                const high = dataArray.slice(100, 200).reduce((a, b) => a + b, 0) / 100; // Highs
+
+                // Display Debug Info
+                document.getElementById('freqVal').innerText = Math.round(bass);
+
+                // --- DCC LOGIC: Bass Implosion ---
+                // If bass hits hard, target is center (0,0,0). Otherwise, target is surface.
+                const isBassHit = bass > CONFIG.bassThreshold;
+                const explosionFactor = bass / 255; // Normalized 0-1
+
+                const posAttr = geometry.attributes.position;
+                const colAttr = geometry.attributes.color;
+
+                for (let i = 0; i < CONFIG.particleCount; i++) {
+                    const i3 = i * 3;
+                    
+                    const ox = originalPositions[i3];
+                    const oy = originalPositions[i3 + 1];
+                    const oz = originalPositions[i3 + 2];
+
+                    let tx, ty, tz; // Target positions
+
+                    if (isBassHit) {
+                        // IMPLODE: Target is center (0,0,0)
+                        // Add some randomness so they don't collapse to a single singularity
+                        const jitter = 2;
+                        tx = (Math.random() - 0.5) * jitter;
+                        ty = (Math.random() - 0.5) * jitter;
+                        tz = (Math.random() - 0.5) * jitter;
+                    } else {
+                        // RETURN: Target is original sphere shell
+                        // Add some "breathing" based on mids/highs
+                        const expansion = 1 + (mid / 255) * 0.5;
+                        tx = ox * expansion;
+                        ty = oy * expansion;
+                        tz = oz * expansion;
+                    }
+
+                    // Lerp current position to target
+                    // "Implosion" is fast, "Return" is slower/elastic
+                    const speed = isBassHit ? CONFIG.implosionStrength : CONFIG.returnSpeed;
+                    
+                    posAttr.array[i3] += (tx - posAttr.array[i3]) * speed;
+                    posAttr.array[i3 + 1] += (ty - posAttr.array[i3 + 1]) * speed;
+                    posAttr.array[i3 + 2] += (tz - posAttr.array[i3 + 2]) * speed;
+
+                    // --- HSL COLORS ---
+                    // Hue cycles over time
+                    // Saturation depends on Highs (sparkle)
+                    // Lightness depends on Audio Amplitude (brightness)
+                    
+                    // Hue: Base time + offset by particle index for gradient
+                    const hue = (time + (i * 0.0001)) % 1; 
+                    const saturation = 0.5 + (high / 255);
+                    const lightness = 0.3 + (explosionFactor * 0.7); // Bright on beat
+
+                    colorObj.setHSL(hue, saturation, lightness);
+                    
+                    colAttr.array[i3] = colorObj.r;
+                    colAttr.array[i3 + 1] = colorObj.g;
+                    colAttr.array[i3 + 2] = colorObj.b;
+                }
+
+                posAttr.needsUpdate = true;
+                colAttr.needsUpdate = true;
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        // --- RESIZE ---
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        animate();
+    </script>
 </body>
 </html>
